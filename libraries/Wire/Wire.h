@@ -31,20 +31,24 @@
  // WIRE_HAS_END means Wire has end()
 #define WIRE_HAS_END 1
 
+#define WIRE_RECV_TIMEOUT   10000
+
 class TwoWire : public Stream
 {
   public:
     TwoWire(SERCOM *s, uint8_t pinSDA, uint8_t pinSCL);
     void begin();
     void begin(uint8_t);
+
     void end();
     void setClock(uint32_t);
 
     void beginTransmission(uint8_t);
-    uint8_t endTransmission(bool stopBit);
+    uint8_t endTransmission(bool stopBit, int timeout);
+    uint8_t endTransmission(int timeout);
     uint8_t endTransmission(void);
 
-    uint8_t requestFrom(uint8_t address, size_t quantity, bool stopBit);
+    uint8_t requestFrom(uint8_t address, size_t quantity, bool stopBit, int timeout = -1);
     uint8_t requestFrom(uint8_t address, size_t quantity);
 
     size_t write(uint8_t data);

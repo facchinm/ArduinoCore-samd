@@ -62,7 +62,7 @@ void TwoWire::end() {
   sercom->disableWIRE();
 }
 
-uint8_t TwoWire::requestFrom(uint8_t address, size_t quantity, bool stopBit)
+uint8_t TwoWire::requestFrom(uint8_t address, size_t quantity, bool stopBit, int timeout)
 {
   if(quantity == 0)
   {
@@ -76,14 +76,14 @@ uint8_t TwoWire::requestFrom(uint8_t address, size_t quantity, bool stopBit)
   if(sercom->startTransmissionWIRE(address, WIRE_READ_FLAG))
   {
     // Read first data
-    rxBuffer.store_char(sercom->readDataWIRE());
+    rxBuffer.store_char(sercom->readDataWIRE(timeout));
 
     // Connected to slave
     for (byteRead = 1; byteRead < quantity; ++byteRead)
     {
       sercom->prepareAckBitWIRE();                          // Prepare Acknowledge
       sercom->prepareCommandBitsWire(WIRE_MASTER_ACT_READ); // Prepare the ACK command for the slave
-      rxBuffer.store_char(sercom->readDataWIRE());          // Read data and send the ACK
+      rxBuffer.store_char(sercom->readDataWIRE(timeout));          // Read data and send the ACK
     }
     sercom->prepareNackBitWIRE();                           // Prepare NACK to stop slave transmission
     //sercom->readDataWIRE();                               // Clear data register to send NACK
@@ -116,14 +116,14 @@ void TwoWire::beginTransmission(uint8_t address) {
 //  2 : NACK on transmit of address
 //  3 : NACK on transmit of data
 //  4 : Other error
-uint8_t TwoWire::endTransmission(bool stopBit)
+uint8_t TwoWire::endTransmission(bool stopBit, int timeout)
 {
   transmissionBegun = false ;
 
   // Start I2C transmission
-  if ( !sercom->startTransmissionWIRE( txAddress, WIRE_WRITE_FLAG ) )
+  if ( !sercom->startTransmissionWIRE( txAddress, WIRE_WRITE_FLAG, timeout ) )
   {
-    sercom->prepareCommandBitsWire(WIRE_MASTER_ACT_STOP);
+    sercom->prepareCommandBitsWire(WIRE_MASTER_ACT_STOP, timeout);
     return 2 ;  // Address error
   }
 
@@ -133,7 +133,7 @@ uint8_t TwoWire::endTransmission(bool stopBit)
     // Trying to send data
     if ( !sercom->sendDataMasterWIRE( txBuffer.read_char() ) )
     {
-      sercom->prepareCommandBitsWire(WIRE_MASTER_ACT_STOP);
+      sercom->prepareCommandBitsWire(WIRE_MASTER_ACT_STOP, timeout);
       return 3 ;  // Nack or error
     }
   }
@@ -146,9 +146,14 @@ uint8_t TwoWire::endTransmission(bool stopBit)
   return 0;
 }
 
+uint8_t TwoWire::endTransmission(int timeout)
+{
+  return endTransmission(true, timeout);
+}
+
 uint8_t TwoWire::endTransmission()
 {
-  return endTransmission(true);
+  return endTransmission(true, -1);
 }
 
 size_t TwoWire::write(uint8_t ucData)
@@ -248,7 +253,10 @@ void TwoWire::onService(void)
       {
         // wait for data ready flag,
         // before calling request callback
-        while(!sercom->isDataReadyWIRE());
+        int count = 0;
+        while(!sercom->isDataReadyWIRE() && (count < WIRE_RECV_TIMEOUT || WIRE_RECV_TIMEOUT < 0)) {
+          count++;
+        }
 
         //Calling onRequestCallback, if exists
         if(onRequestCallback)
@@ -263,7 +271,7 @@ void TwoWire::onService(void)
         sercom->prepareNackBitWIRE(); 
       } else {
         //Store data
-        rxBuffer.store_char(sercom->readDataWIRE());
+        rxBuffer.store_char(sercom->readDataWIRE(WIRE_RECV_TIMEOUT));
 
         sercom->prepareAckBitWIRE(); 
       }

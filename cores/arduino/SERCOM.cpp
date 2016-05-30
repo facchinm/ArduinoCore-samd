@@ -464,13 +464,15 @@ void SERCOM::prepareAckBitWIRE( void )
   }
 }
 
-void SERCOM::prepareCommandBitsWire(uint8_t cmd)
+void SERCOM::prepareCommandBitsWire(uint8_t cmd, int timeout)
 {
   if(isMasterWIRE()) {
     sercom->I2CM.CTRLB.bit.CMD = cmd;
+    int count = 0;
 
-    while(sercom->I2CM.SYNCBUSY.bit.SYSOP)
+    while(sercom->I2CM.SYNCBUSY.bit.SYSOP && (count < timeout || timeout < 0))
     {
+      count++;
       // Waiting for synchronization
     }
   } else {
@@ -478,13 +480,18 @@ void SERCOM::prepareCommandBitsWire(uint8_t cmd)
   }
 }
 
-bool SERCOM::startTransmissionWIRE(uint8_t address, SercomWireReadWriteFlag flag)
+bool SERCOM::startTransmissionWIRE(uint8_t address, SercomWireReadWriteFlag flag, int timeout)
 {
   // 7-bits address + 1-bits R/W
   address = (address << 0x1ul) | flag;
+  int count = 0;
 
   // Wait idle or owner bus mode
-  while ( !isBusIdleWIRE() && !isBusOwnerWIRE() );
+  while ( !isBusIdleWIRE() && !isBusOwnerWIRE() && (count < timeout || timeout < 0)) {
+    count++;
+  }
+
+  count = 0;
 
   // Send start and address
   sercom->I2CM.ADDR.bit.ADDR = address;
@@ -492,8 +499,9 @@ bool SERCOM::startTransmissionWIRE(uint8_t address, SercomWireReadWriteFlag flag
   // Address Transmitted
   if ( flag == WIRE_WRITE_FLAG ) // Write mode
   {
-    while( !sercom->I2CM.INTFLAG.bit.MB )
+    while( !sercom->I2CM.INTFLAG.bit.MB && (count < timeout || timeout < 0))
     {
+      count++;
       // Wait transmission complete
     }
   }
@@ -621,12 +629,14 @@ int SERCOM::availableWIRE( void )
     return sercom->I2CS.INTFLAG.bit.DRDY;
 }
 
-uint8_t SERCOM::readDataWIRE( void )
+uint8_t SERCOM::readDataWIRE( int timeout )
 {
   if(isMasterWIRE())
   {
-    while( sercom->I2CM.INTFLAG.bit.SB == 0 )
+    int count = 0;
+    while( sercom->I2CM.INTFLAG.bit.SB == 0 && (count < timeout || timeout < 0))
     {
+      count++;
       // Waiting complete receive
     }
 
