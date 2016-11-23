@@ -263,7 +263,7 @@ void analogWrite(uint32_t pin, uint32_t value)
         TCx->COUNT8.CC[tcChannel].reg = (uint8_t) value;
         syncTC_8(TCx);
         // Set PER to maximum counter value (resolution : 0xFF)
-        TCx->COUNT8.PER.reg = 0xFF;
+        TCx->COUNT8.PER.reg = 0xFE;
         syncTC_8(TCx);
         // Enable TCx
         TCx->COUNT8.CTRLA.bit.ENABLE = 1;
@@ -284,7 +284,7 @@ void analogWrite(uint32_t pin, uint32_t value)
         TCCx->CC[tcChannel].reg = (uint32_t) value;
         syncTCC(TCCx);
         // Set PER to maximum counter value (resolution : 0xFF)
-        TCCx->PER.reg = 0xFF;
+        TCCx->PER.reg = 0xFE;
         syncTCC(TCCx);
         // Enable TCCx
         TCCx->CTRLA.bit.ENABLE = 1;
