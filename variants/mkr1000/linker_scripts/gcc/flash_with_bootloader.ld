@@ -65,6 +65,10 @@ SECTIONS
 {
 	.text :
 	{
+
+		KEEP(*(.second_stage_boot))
+		. = ALIGN(0x200);
+
 		KEEP(*(.isr_vector))
 		*(.text*)
 
