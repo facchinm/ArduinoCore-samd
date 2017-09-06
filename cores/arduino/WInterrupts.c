@@ -21,12 +21,14 @@
 
 #include <string.h>
 
-static voidFuncPtr callbacksInt[EXTERNAL_NUM_INTERRUPTS];
+static voidFuncPtrParam callbacksInt[EXTERNAL_NUM_INTERRUPTS];
+static void* parametersInt[EXTERNAL_NUM_INTERRUPTS];
 
 /* Configure I/O interrupt sources */
 static void __initialize()
 {
   memset(callbacksInt, 0, sizeof(callbacksInt));
+  memset(parametersInt, 0, sizeof(parametersInt));
 
   NVIC_DisableIRQ(EIC_IRQn);
   NVIC_ClearPendingIRQ(EIC_IRQn);
@@ -47,12 +49,22 @@ static void __initialize()
   while (EIC->STATUS.bit.SYNCBUSY == 1) { }
 }
 
+void attachInterrupt(uint32_t pin, voidFuncPtr callback, uint32_t mode) {
+  // THIS IMPLEMENTATION IS NOT PORTABLE!
+  // 
+  // On AVR's calling convention, calling a function with more arguments than it declares 
+  // is OK - The extra parameter is ignored and causes no harm
+  //
+  // This implementation takes advantage of it to support callbacks with and without parameters with minimum overhead.
+  attachInterruptParam(pin, (voidFuncPtrParam)callback, mode, NULL);
+}
+
 /*
  * \brief Specifies a named Interrupt Service Routine (ISR) to call when an interrupt occurs.
  *        Replaces any previous function that was attached to the interrupt.
  */
-void attachInterrupt(uint32_t pin, voidFuncPtr callback, uint32_t mode)
-{
+void attachInterruptParam(uint32_t pin, voidFuncPtrParam callback, uint32_t mode, void* param) {
+
   static int enabled = 0;
   uint32_t config;
   uint32_t pos;
@@ -78,6 +90,7 @@ void attachInterrupt(uint32_t pin, voidFuncPtr callback, uint32_t mode)
 
   // Assign callback to interrupt
   callbacksInt[in] = callback;
+  parametersInt[in] = param;
 
   // Look for right CONFIG register to be addressed
   if (in > EXTERNAL_INT_7) {
@@ -147,7 +160,7 @@ void EIC_Handler(void)
     {
       // Call the callback function if assigned
       if (callbacksInt[i]) {
-        callbacksInt[i]();
+        callbacksInt[i](parametersInt[i]);
       }
 
       // Clear the interrupt
